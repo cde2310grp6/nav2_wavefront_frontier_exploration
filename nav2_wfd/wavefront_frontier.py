@@ -16,6 +16,12 @@
 import sys
 import time
 
+# for mission control
+from custom_msg_srv.msg import MapExplored
+
+
+
+
 from action_msgs.msg import GoalStatus
 from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped
 # from nav2_msgs.action import FollowWaypoints
@@ -284,6 +290,14 @@ class WaypointFollowerTest(Node):
         self.costmapSub = self.create_subscription(OccupancyGrid(), '/map', self.occupancyGridCallback, pose_qos)
         self.costmap = None
 
+
+        # for mission_control
+        self.explored_pub = self.create_publisher(MapExplored, 'exploration_complete', 10)
+        msg = MapExplored() 
+        msg.explore_complete = False # initiate topic to False
+        self.explored_pub.publish(msg) 
+
+
         self.get_logger().info('Running Waypoint Test')
 
     def occupancyGridCallback(self, msg):
@@ -293,6 +307,10 @@ class WaypointFollowerTest(Node):
         frontiers = getFrontier(self.currentPose, self.costmap, self.get_logger())
 
         if len(frontiers) == 0:
+            # publish for mission_control to continue to next segment
+            msg = MapExplored()
+            msg.explore_complete = True
+            self.explored_pub.publish(msg)
             self.info_msg('No More Frontiers')
             return
 
