@@ -45,7 +45,7 @@ import numpy as np
 import math
 
 OCC_THRESHOLD = 10
-MIN_FRONTIER_SIZE = 5
+MIN_FRONTIER_SIZE = 2
 
 class Costmap2d():
     class CostValues(Enum):
