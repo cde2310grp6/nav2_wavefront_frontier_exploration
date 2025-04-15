@@ -47,6 +47,10 @@ import math
 OCC_THRESHOLD = 10
 MIN_FRONTIER_SIZE = 5
 
+global visited_frontiers
+visited_frontiers = {}
+
+
 class Costmap2d():
     class CostValues(Enum):
         FreeSpace = 0
@@ -297,6 +301,8 @@ class WaypointFollowerTest(Node):
         msg.explore_complete = False # initiate topic to False
         self.explored_pub.publish(msg) 
 
+        self.kill_now = False
+
 
         self.get_logger().info('Running Waypoint Test')
 
@@ -304,6 +310,12 @@ class WaypointFollowerTest(Node):
         self.costmap = OccupancyGrid2d(msg)
 
     def moveToFrontiers(self):
+
+        if self.kill_now:
+            self.get_logger().warn('thread killed')
+            return
+
+
         frontiers = getFrontier(self.currentPose, self.costmap, self.get_logger())
 
         if len(frontiers) == 0:
@@ -330,6 +342,35 @@ class WaypointFollowerTest(Node):
         action_request = NavigateToPose.Goal()
         # action_request.poses = self.waypoints
         action_request.pose = self.waypoints[0]
+
+        self.info_msg(f'BRUHURHURHURHUR')
+
+
+        ########################################################################################################3
+
+        # add waypoint to visited list
+        x = self.waypoints[0].pose.position.x
+        y = self.waypoints[0].pose.position.y
+
+        self.info_msg(f'visited_frontiers:{visited_frontiers}')
+
+        if x in visited_frontiers and visited_frontiers[x] == y:
+            self.info_msg(f'Visited {x}{visited_frontiers[x]} already!')
+            self.get_logger().warn(f'visited same frontier too many times! aborting!')
+            msg = MapExplored()
+            msg.explore_complete = True
+            self.explored_pub.publish(msg)
+            self.info_msg('No More Frontiers')
+
+            # kill the thread
+            self.kill_now = True
+            return
+        else:
+            visited_frontiers[x] = y
+
+        ########################################################################################################
+
+
 
         self.info_msg('Sending goal request...')
         send_goal_future = self.action_client.send_goal_async(action_request)
@@ -402,58 +443,6 @@ class WaypointFollowerTest(Node):
             msg.pose.position.y = wp[1]
             msg.pose.orientation.w = 1.0
             self.waypoints.append(msg)
-
-    def run(self, block):
-        if not self.waypoints:
-            rclpy.error_msg('Did not set valid waypoints before running test!')
-            return False
-
-        while not self.action_client.wait_for_server(timeout_sec=1.0):
-            # self.info_msg("'FollowWaypoints' action server not available, waiting...")
-            self.info_msg("'NavigateToPose' action server not available, waiting...")
-
-        # action_request = FollowWaypoints.Goal()
-        action_request = NavigateToPose.Goal()
-        # action_request.poses = self.waypoints
-        action_request.pose = self.waypoints[0]
-
-        self.info_msg('Sending goal request...')
-        send_goal_future = self.action_client.send_goal_async(action_request)
-        try:
-            rclpy.spin_until_future_complete(self, send_goal_future)
-            self.goal_handle = send_goal_future.result()
-        except Exception as e:
-            self.error_msg('Service call failed %r' % (e,))
-
-        if not self.goal_handle.accepted:
-            self.error_msg('Goal rejected')
-            return False
-
-        self.info_msg('Goal accepted')
-        if not block:
-            return True
-
-        get_result_future = self.goal_handle.get_result_async()
-
-        # self.info_msg("Waiting for 'FollowWaypoints' action to complete")
-        self.info_msg("Waiting for 'NavigateToPose' action to complete")
-        try:
-            rclpy.spin_until_future_complete(self, get_result_future)
-            status = get_result_future.result().status
-            result = get_result_future.result().result
-        except Exception as e:
-            self.error_msg('Service call failed %r' % (e,))
-
-        if status != GoalStatus.STATUS_SUCCEEDED:
-            self.info_msg('Goal failed with status code: {0}'.format(status))
-            return False
-        if len(result.missed_waypoints) > 0:
-            self.info_msg('Goal failed to process all waypoints,'
-                          ' missed {0} wps.'.format(len(result.missed_waypoints)))
-            return False
-
-        self.info_msg('Goal succeeded!')
-        return True
 
     def publishInitialPose(self):
         self.initial_pose_pub.publish(self.init_pose)
