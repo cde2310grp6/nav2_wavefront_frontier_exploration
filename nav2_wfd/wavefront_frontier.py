@@ -276,7 +276,7 @@ class WaypointFollowerTest(Node):
 
         self.costmapClient = self.create_client(GetCostmap, '/global_costmap/get_costmap')
         while not self.costmapClient.wait_for_service(timeout_sec=1.0):
-            self.info_msg('service not available, waiting again...')
+            self.info_msg('costmapclient service not available, waiting again...')
         self.initial_pose_received = False
         self.goal_handle = None
 
@@ -293,6 +293,7 @@ class WaypointFollowerTest(Node):
         # self.costmapSub = self.create_subscription(Costmap(), '/global_costmap/costmap_raw', self.costmapCallback, pose_qos)
         self.costmapSub = self.create_subscription(OccupancyGrid(), '/map', self.occupancyGridCallback, pose_qos)
         self.costmap = None
+        self.occupancy_grid_received = False
 
 
         # for mission_control
@@ -307,9 +308,18 @@ class WaypointFollowerTest(Node):
         self.get_logger().info('Running Waypoint Test')
 
     def occupancyGridCallback(self, msg):
+        self.occupancy_grid_received = True  # Mark OccupancyGrid as received
         self.costmap = OccupancyGrid2d(msg)
 
     def moveToFrontiers(self):
+
+        if not self.initial_pose_received:
+            self.get_logger().warning("Odometry data not received yet. Waiting...")
+            return
+
+        if not self.occupancy_grid_received:
+            self.get_logger().warning("OccupancyGrid data not received yet. Waiting...")
+            return
 
         if self.kill_now:
             self.get_logger().warn('thread killed')
