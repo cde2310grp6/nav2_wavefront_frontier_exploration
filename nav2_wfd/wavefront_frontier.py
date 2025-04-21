@@ -47,6 +47,8 @@ import math
 OCC_THRESHOLD = 10
 MIN_FRONTIER_SIZE = 5
 
+REPEAT_LIMIT = 5
+
 global visited_frontiers
 visited_frontiers = {}
 
@@ -304,6 +306,8 @@ class WaypointFollowerTest(Node):
 
         self.kill_now = False
 
+        self.repeated_frontiers = 0
+
 
         self.get_logger().info('Running Waypoint Test')
 
@@ -365,6 +369,10 @@ class WaypointFollowerTest(Node):
         self.info_msg(f'visited_frontiers:{visited_frontiers}')
 
         if x in visited_frontiers and visited_frontiers[x] == y:
+            self.repeated_frontiers += 1
+            self.get_logger().info(f"repeated frontiers: {self.repeated_frontiers}")
+
+        if self.repeated_frontiers >= REPEAT_LIMIT:
             self.info_msg(f'Visited {x}{visited_frontiers[x]} already!')
             self.get_logger().warn(f'visited same frontier too many times! aborting!')
             msg = MapExplored()
