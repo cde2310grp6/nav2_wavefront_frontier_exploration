@@ -23,7 +23,7 @@ For basic/general build instructions follow this tutorial: https://index.ros.org
 - git clone the project into your colcon workspace's "src" directory
 - In your colcon workspace root directory run:
   
-        rosdep install -i --from-path src --rosdistro foxy -y
+        rosdep install -i --from-path src --rosdistro humble -y
         colcon build --packages-select nav2_wfd
 
 - Setup development path:
